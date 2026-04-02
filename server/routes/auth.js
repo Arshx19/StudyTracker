@@ -6,7 +6,7 @@ const jwt = require('jsonwebtoken');
 const authMiddleware = require('../middleware/authMiddleware');
 
 
-// ✅ Protected Route
+
 router.get('/profile', authMiddleware, (req, res) => {
     res.json({
         message: "Protected profile data",
@@ -14,8 +14,23 @@ router.get('/profile', authMiddleware, (req, res) => {
     });
 });
 
+router.get('/dashboard', authMiddleware, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.userid);
 
-// ✅ Register
+        res.json({
+            name: user.name,
+            totalHours: user.totalHours,
+            streak: user.streak,
+            points: user.points
+        });
+
+    } catch (err) {
+        console.log(err);
+        res.json({ message: "Error" });
+    }
+});
+
 router.post('/register', async (req, res) => {
     try {
         const { name, email, password } = req.body;
@@ -44,7 +59,7 @@ router.post('/register', async (req, res) => {
 });
 
 
-// ✅ Login
+
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -76,5 +91,43 @@ router.post('/login', async (req, res) => {
         res.json({ message: "Error" });
     }
 });
+
+router.post('/study', authMiddleware, async(req,res)=>{
+    try{
+        const {hours} = req.body;
+        const user = await User.findById(req.user.userid);
+        
+        user.totalHours+=hours;
+        
+        user.points+=hours*10;
+
+        const today = new Date().toDateString();
+        const lastDate= user.lastStudyDate
+            ? new Date(user.lastStudyDate).toDateString() 
+            : null;
+        if(lastDate == today){
+            //if same day then no change
+        }
+        else if (lastDate === new Date(Date.now() - 86400000).toDateString()) {
+            user.streak += 1;
+        }
+        else {
+            user.streak = 1;
+        }
+        user.lastStudyDate = new Date();
+
+        await user.save();
+
+        res.json({
+            message: "Study updated",
+            totalHours: user.totalHours,
+            streak: user.streak,
+            points: user.points
+        });
+    }catch(err){
+        console.log(err);
+        res.json({ message: "Error" });
+    }
+})
 
 module.exports = router;
